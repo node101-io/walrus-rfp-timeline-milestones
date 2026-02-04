@@ -43,7 +43,7 @@ The backend is a **convenience layer**, not a gatekeeper. All video data lives o
 
 ## Architecture Overview
 
-![High-Level Architecture](diagrams/08-component-overview.puml)
+![High-Level Architecture](diagrams/images/08-component-overview.png)
 
 ### Key Components
 
@@ -77,20 +77,61 @@ The backend is a **convenience layer**, not a gatekeeper. All video data lives o
 
 ## Sequence Diagrams
 
-Detailed flows are documented in PlantUML format:
+Detailed flows documented below. Click to expand each diagram.
 
-| Flow | File | Description |
-|------|------|-------------|
-| Developer Onboarding | [01-developer-onboarding.puml](diagrams/01-developer-onboarding.puml) | Registration and SUI deposit |
-| Video Upload | [02-video-upload.puml](diagrams/02-video-upload.puml) | Chunked upload, HLS transcoding, Walrus storage |
-| Video Playback | [03-video-playback.puml](diagrams/03-video-playback.puml) | HLS streaming with caching |
-| Auto-Renewal | [04-auto-renewal.puml](diagrams/04-auto-renewal.puml) | Scheduled blob lifetime extension |
-| Video Deletion | [05-video-deletion.puml](diagrams/05-video-deletion.puml) | Content removal with storage reclaim |
-| Bandwidth Enforcement | [06-bandwidth-enforcement.puml](diagrams/06-bandwidth-enforcement.puml) | Quota checking and blocking |
-| Embed Player | [07-embed-player.puml](diagrams/07-embed-player.puml) | iframe and direct HLS embedding |
-| Component Overview | [08-component-overview.puml](diagrams/08-component-overview.puml) | High-level architecture |
-| Private Video Upload | [09-private-video-upload.puml](diagrams/09-private-video-upload.puml) | Seal encryption with envelope encryption |
-| Private Video Playback | [10-private-video-playback.puml](diagrams/10-private-video-playback.puml) | Client-side decryption with wallet auth |
+<details>
+<summary><strong>1. Developer Onboarding</strong> - Registration and SUI deposit</summary>
+
+![Developer Onboarding](diagrams/images/01-developer-onboarding.png)
+</details>
+
+<details>
+<summary><strong>2. Video Upload</strong> - Chunked upload, HLS transcoding, Walrus storage</summary>
+
+![Video Upload](diagrams/images/02-video-upload.png)
+</details>
+
+<details>
+<summary><strong>3. Video Playback</strong> - HLS streaming with caching</summary>
+
+![Video Playback](diagrams/images/03-video-playback.png)
+</details>
+
+<details>
+<summary><strong>4. Auto-Renewal</strong> - Scheduled blob lifetime extension</summary>
+
+![Auto-Renewal](diagrams/images/04-auto-renewal.png)
+</details>
+
+<details>
+<summary><strong>5. Video Deletion</strong> - Content removal with storage reclaim</summary>
+
+![Video Deletion](diagrams/images/05-video-deletion.png)
+</details>
+
+<details>
+<summary><strong>6. Bandwidth Enforcement</strong> - Quota checking and blocking</summary>
+
+![Bandwidth Enforcement](diagrams/images/06-bandwidth-enforcement.png)
+</details>
+
+<details>
+<summary><strong>7. Embed Player</strong> - iframe and direct HLS embedding</summary>
+
+![Embed Player](diagrams/images/07-embed-player.png)
+</details>
+
+<details>
+<summary><strong>8. Private Video Upload</strong> - Seal encryption with envelope encryption</summary>
+
+![Private Video Upload](diagrams/images/09-private-video-upload.png)
+</details>
+
+<details>
+<summary><strong>9. Private Video Playback</strong> - Client-side decryption with wallet auth</summary>
+
+![Private Video Playback](diagrams/images/10-private-video-playback.png)
+</details>
 
 ## Private Videos
 
@@ -198,6 +239,9 @@ Together, they enable video infrastructure that's developer-friendly, genuinely 
 
 ---
 
-## Links
+## Resources
 
-- [Sequence Diagrams](diagrams/)
+- [Walrus Documentation](https://docs.wal.app/)
+- [Sui Documentation](https://docs.sui.io/)
+- [Seal Documentation](https://docs.seal.xyz/)
+- [PlantUML Source Files](diagrams/)
