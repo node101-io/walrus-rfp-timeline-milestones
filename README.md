@@ -30,16 +30,7 @@ This platform is **not a centralized service**. It's infrastructure that anyone 
 
 The backend is a **convenience layer**, not a gatekeeper. All video data lives on Walrus. All ownership records live on Sui. The backend simply provides developer-friendly APIs and caching.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Your App                                               │
-├─────────────────────────────────────────────────────────┤
-│  Platform Backend (self-hostable, replaceable)         │
-├─────────────────────────────────────────────────────────┤
-│  Sui (ownership, state)  +  Walrus (video storage)     │
-│  ─────────────── decentralized layer ───────────────   │
-└─────────────────────────────────────────────────────────┘
-```
+![Platform Layers](diagrams/images/platform-layers.png)
 
 ## Architecture Overview
 
