@@ -1,0 +1,71 @@
+@startuml 05-video-deletion
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 5: Video Deletion (Developer Initiated)
+
+actor "Developer" as Dev
+participant "Platform\nBackend" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+database "Cache\nLayer" as Cache
+
+== Delete Request ==
+
+Dev -> Backend: DELETE /videos/{video_id}\nAuthorization: Bearer {api_key}
+
+Backend -> Backend: Validate API key\nResolve to dev_account
+
+Backend -> Contract: get_video(video_id)
+Contract -> Sui: Read Video object
+Sui --> Contract: Video {owner, blob_ids, sui_obj_ids, ...}
+Contract --> Backend: video
+
+alt Developer is not owner
+    Backend --> Dev: 403 Forbidden
+else Developer is owner
+
+    == Delete Blobs from Walrus ==
+
+    loop For each blob in video
+        Backend -> Walrus: walrus delete\n--object-id {sui_obj_id}
+        Walrus -> Walrus: Mark blob as deleted
+        Walrus --> Backend: Storage resource reclaimed
+    end
+
+    note right of Walrus
+      Storage resource is freed
+      and can be REUSED for
+      new blob uploads.
+    end note
+
+    == Burn Sui Objects & Update State ==
+
+    Backend -> Contract: delete_video(video_id)
+
+    loop For each blob Sui object
+        Contract -> Sui: Burn blob object
+        Sui --> Contract: Storage rebate (SUI)
+    end
+
+    Contract -> Sui: Delete Video object
+    Contract -> Sui: Credit storage rebate\nto DeveloperAccount
+    Sui --> Contract: Success
+    Contract --> Backend: Deleted\n+ rebate amount
+
+    == Invalidate Cache ==
+
+    Backend -> Cache: Invalidate all keys\nfor video_id
+    Cache --> Backend: Purged
+
+    Backend --> Dev: 200 OK\n{\n  deleted: true,\n  storage_resource_freed: "X bytes",\n  sui_rebate: "Y SUI"\n}
+
+    note right of Contract
+      Developer receives:
+      1. Storage resource back (reusable for new uploads)
+      2. SUI storage rebate (from burning Sui objects)
+    end note
+end
+
+@enduml

@@ -1,0 +1,82 @@
+@startuml 03-video-playback
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 3: Video Playback (HLS Streaming)
+
+actor "End User" as User
+participant "Video\nPlayer" as Player
+participant "Platform\nBackend\n(Aggregator)" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+database "Cache\nLayer" as Cache
+
+== Initial Request ==
+
+User -> Player: Click play on\nhttps://api.platform.com/v/{video_id}/stream.m3u8
+
+Player -> Backend: GET /v/{video_id}/stream.m3u8
+
+Backend -> Contract: get_video_status(video_id)
+Contract -> Sui: Read Video object
+Sui --> Contract: Video {\n  owner, blob_ids,\n  expiry_epoch, status\n}
+Contract --> Backend: video_status
+
+alt Video expired or owner has no bandwidth
+    Backend --> Player: 410 Gone / 402 Payment Required
+    Player --> User: "Video unavailable"
+else Video available
+    Backend -> Backend: Check dev's bandwidth quota
+
+    alt Developer bandwidth exceeded
+        Backend --> Player: 429 Too Many Requests
+        Player --> User: "Video temporarily unavailable"
+    else Bandwidth available
+        Backend -> Cache: Check manifest cache
+
+        alt Cache hit
+            Cache --> Backend: manifest.m3u8
+        else Cache miss
+            Backend -> Walrus: Read manifest blob
+            Walrus --> Backend: manifest.m3u8
+            Backend -> Cache: Store in cache
+        end
+
+        Backend -> Backend: Log bandwidth: +manifest_size
+        Backend --> Player: manifest.m3u8
+    end
+end
+
+== Segment Streaming ==
+
+loop For each HLS segment requested
+    Player -> Backend: GET /v/{video_id}/seg_{n}.ts
+
+    Backend -> Cache: Check segment cache
+
+    alt Cache hit
+        Cache --> Backend: segment data
+    else Cache miss
+        Backend -> Walrus: Read segment blob\n(byte-range if needed)
+        Walrus --> Backend: segment data
+        Backend -> Cache: Store in cache (TTL)
+    end
+
+    Backend -> Backend: Log bandwidth:\n+segment_size
+    Backend --> Player: segment data
+    Player -> Player: Buffer & play
+end
+
+== Bandwidth Tracking (Async) ==
+
+Backend ->> Contract: update_bandwidth_used(\n  dev_account,\n  bytes_served\n)
+Contract -> Sui: Update DeveloperAccount {\n  bandwidth_used += bytes\n}
+
+note right of Backend
+  Bandwidth updates batched
+  and submitted periodically
+  (not per-request)
+end note
+
+@enduml

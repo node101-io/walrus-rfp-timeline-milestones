@@ -1,0 +1,38 @@
+@startuml 01-developer-onboarding
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 1: Developer Onboarding & SUI Deposit
+
+actor "Developer" as Dev
+participant "Platform\nBackend" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+
+== Registration ==
+
+Dev -> Backend: Register (email, project name)
+Backend -> Backend: Create developer account
+Backend -> Contract: Create DeveloperAccount object
+Contract -> Sui: Store DeveloperAccount {\n  owner: dev_wallet,\n  balance: 0,\n  bandwidth_quota: 0,\n  bandwidth_used: 0\n}
+Sui --> Contract: account_id
+Contract --> Backend: account_id
+Backend --> Dev: Account created\n+ platform API key
+
+== Deposit SUI ==
+
+Dev -> Contract: deposit(amount: 100 SUI)
+Contract -> Contract: Validate sender == account owner
+Contract -> Sui: Transfer SUI to contract
+Contract -> Sui: Update DeveloperAccount {\n  balance += 100 SUI,\n  bandwidth_quota += calculated_gb\n}
+Sui --> Contract: Success
+Contract --> Dev: Deposit confirmed\nNew balance: 100 SUI\nBandwidth quota: X GB
+
+note right of Contract
+  Bandwidth quota calculated from SUI:
+  e.g., 1 SUI = 10 GB bandwidth
+
+  Storage is paid per-upload separately
+end note
+
+@enduml

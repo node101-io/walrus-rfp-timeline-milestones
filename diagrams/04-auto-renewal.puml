@@ -1,0 +1,56 @@
+@startuml 04-auto-renewal
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 4: Blob Auto-Renewal (Scheduled Job)
+
+participant "Platform\nScheduler" as Scheduler
+participant "Platform\nBackend" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+
+== Daily Renewal Check ==
+
+Scheduler -> Backend: Trigger renewal check
+
+Backend -> Contract: get_expiring_videos(\n  within_epochs: 5\n)
+Contract -> Sui: Query Videos where\nexpiry_epoch <= current + 5
+Sui --> Contract: expiring_videos[]
+Contract --> Backend: expiring_videos[]
+
+loop For each expiring video
+    Backend -> Contract: get_owner_balance(video.owner)
+    Contract --> Backend: owner_balance
+
+    Backend -> Contract: estimate_renewal_cost(\n  video.blob_ids,\n  renewal_epochs: 53\n)
+    Contract --> Backend: renewal_cost
+
+    alt Owner balance >= renewal_cost
+        Backend -> Contract: authorize_renewal(\n  video_id,\n  renewal_epochs: 53\n)
+        Contract -> Sui: Verify owner balance
+        Contract -> Sui: Deduct renewal_cost\nfrom DeveloperAccount
+
+        loop For each blob in video
+            Contract -> Walrus: walrus extend\n--blob-obj-id {id}\n--epochs 53
+            Walrus --> Contract: Extended to epoch N
+        end
+
+        Contract -> Sui: Update Video {\n  expiry_epoch = new_epoch\n}
+        Contract --> Backend: Renewal success
+
+        Backend -> Backend: Log: Video {id} renewed\nuntil epoch {N}
+
+    else Owner balance < renewal_cost
+        Backend -> Backend: Mark video for expiry warning
+        Backend ->> Backend: Send notification to developer:\n"Video {id} will expire in 5 epochs.\nDeposit {X} SUI to renew."
+
+        note right of Backend
+          Video will NOT be renewed.
+          It will expire at expiry_epoch
+          and become unavailable.
+        end note
+    end
+end
+
+@enduml

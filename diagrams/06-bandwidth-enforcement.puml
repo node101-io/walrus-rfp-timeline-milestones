@@ -1,0 +1,52 @@
+@startuml 06-bandwidth-enforcement
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 6: Bandwidth Quota Enforcement
+
+actor "End User" as User
+participant "Platform\nBackend" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+
+== Normal Request Flow ==
+
+User -> Backend: GET /v/{video_id}/stream.m3u8
+
+Backend -> Backend: Lookup video -> dev_account
+
+Backend -> Contract: get_bandwidth_status(dev_account)
+Contract -> Sui: Read DeveloperAccount
+Sui --> Contract: {\n  bandwidth_quota: 1000 GB,\n  bandwidth_used: 950 GB\n}
+Contract --> Backend: quota_remaining: 50 GB
+
+alt quota_remaining > 0
+    Backend -> Backend: Serve video normally
+    Backend --> User: Video content
+else quota_remaining <= 0
+    Backend --> User: 429 Too Many Requests\n{\n  error: "bandwidth_exceeded",\n  message: "Video owner's quota exceeded",\n  retry_after: null\n}
+
+    note right of Backend
+      Developer must deposit more SUI
+      to restore bandwidth quota.
+
+      All their videos become
+      unviewable until topped up.
+    end note
+end
+
+== Developer Tops Up ==
+
+actor "Developer" as Dev
+
+Dev -> Contract: deposit(amount: 50 SUI)
+Contract -> Sui: Update DeveloperAccount {\n  balance += 50 SUI,\n  bandwidth_quota += 500 GB\n}
+Sui --> Contract: Success
+Contract --> Dev: Bandwidth restored\nNew quota: 1500 GB
+
+note right of Dev
+  Videos immediately become
+  viewable again after deposit.
+end note
+
+@enduml

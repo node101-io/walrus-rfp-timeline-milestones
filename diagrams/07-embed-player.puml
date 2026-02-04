@@ -1,0 +1,50 @@
+@startuml 07-embed-player
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 7: Video Embedding
+
+actor "Website\nVisitor" as Visitor
+participant "Third-party\nWebsite" as Website
+participant "Platform\nBackend" as Backend
+participant "Platform\nPlayer" as Player
+
+== iframe Embed ==
+
+Visitor -> Website: Visit page with embedded video
+
+Website -> Website: Render HTML:\n<iframe src="https://api.platform.com\n/embed/{video_id}"></iframe>
+
+Website -> Backend: GET /embed/{video_id}
+
+Backend -> Backend: Validate video exists\nCheck bandwidth quota
+
+alt Video available
+    Backend --> Website: HTML page with:\n- Video.js / HLS.js player\n- Configured for /v/{video_id}/stream.m3u8\n- Platform branding (optional)
+
+    Website --> Visitor: Render iframe
+
+    Visitor -> Player: Click play
+    Player -> Backend: GET /v/{video_id}/stream.m3u8
+    note right of Player: Standard HLS flow\n(see Flow 3)
+
+else Video unavailable
+    Backend --> Website: Error page:\n"Video unavailable"
+    Website --> Visitor: Error displayed
+end
+
+== Direct HLS URL (Alternative) ==
+
+note over Website
+  Alternative: Direct <video> tag
+
+  <video controls>
+    <source src="https://api.platform.com
+      /v/{video_id}/stream.m3u8"
+      type="application/x-mpegURL">
+  </video>
+
+  Requires HLS.js for non-Safari browsers
+end note
+
+@enduml

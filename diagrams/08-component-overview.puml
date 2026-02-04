@@ -1,0 +1,54 @@
+@startuml 08-component-overview
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+skinparam packagePadding 20
+
+title High-Level Architecture
+
+top to bottom direction
+
+' === CLIENTS ===
+rectangle "Clients" {
+    [Developer\n(SDK)] as Dev
+    [End User\n(Player)] as User
+}
+
+' === PLATFORM ===
+rectangle "Platform Backend\n(Self-hostable)" as Platform {
+    [API &\nServices] as API
+    database "Cache" as Cache
+}
+
+' === BLOCKCHAIN ===
+rectangle "Sui Blockchain" as Sui {
+    [Smart Contract] as Contract
+    note bottom of Contract
+      - Accounts & Balances
+      - Video metadata
+      - Bandwidth tracking
+    end note
+}
+
+' === STORAGE ===
+rectangle "Walrus" as Walrus {
+    [Decentralized\nStorage] as Storage
+    note bottom of Storage
+      - HLS segments
+      - Video blobs
+    end note
+}
+
+' === CONNECTIONS ===
+Dev --> API : upload\nmanage
+User --> API : watch
+
+API --> Cache
+Cache --> Storage : read
+
+API --> Contract : state
+API --> Storage : write
+
+@enduml

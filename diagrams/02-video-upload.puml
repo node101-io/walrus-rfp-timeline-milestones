@@ -1,0 +1,60 @@
+@startuml 02-video-upload
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 2: Video Upload Flow
+
+actor "Developer" as Dev
+participant "Platform\nBackend" as Backend
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+
+== Initiate Upload ==
+
+Dev -> Backend: POST /videos/upload\n{title, duration_epochs}
+Backend -> Contract: estimate_storage_cost(size_estimate, epochs)
+Contract --> Backend: cost_estimate (in SUI)
+Backend -> Contract: check_balance(dev_account)
+Contract --> Backend: balance, available
+
+alt Balance insufficient
+    Backend --> Dev: Error: Insufficient balance\nRequired: X SUI, Available: Y SUI
+else Balance sufficient
+    Backend -> Backend: Generate upload_session_id
+    Backend --> Dev: upload_session_id\n+ presigned chunk URLs
+end
+
+== Chunked Upload ==
+
+loop For each video chunk
+    Dev -> Backend: PUT /upload/{session_id}/chunk/{n}\n[binary data]
+    Backend -> Backend: Validate chunk\nStore temporarily
+    Backend --> Dev: Chunk {n} received
+end
+
+Dev -> Backend: POST /upload/{session_id}/complete
+
+== Store to Walrus ==
+
+Backend -> Backend: Assemble chunks\nTranscode to HLS\nGenerate manifest
+
+loop For each HLS segment + manifest
+    Backend -> Walrus: walrus store --deletable\n--epochs {duration}
+    Walrus --> Backend: blob_id, sui_object_id
+    Backend -> Backend: Record blob mapping
+end
+
+== Register on Sui ==
+
+Backend -> Contract: register_video(\n  dev_account,\n  video_metadata,\n  blob_ids[],\n  sui_object_ids[],\n  storage_cost,\n  expiry_epoch\n)
+
+Contract -> Sui: Create Video object {\n  owner: dev_wallet,\n  blob_ids: [...],\n  metadata: {...},\n  expiry_epoch: N,\n  bandwidth_consumed: 0\n}
+
+Contract -> Sui: Deduct storage_cost from\nDeveloperAccount.balance
+
+Sui --> Contract: video_id
+Contract --> Backend: video_id
+Backend --> Dev: Upload complete\n{\n  video_id,\n  playback_url,\n  embed_url,\n  expiry_epoch\n}
+
+@enduml
