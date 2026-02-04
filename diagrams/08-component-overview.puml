@@ -13,7 +13,7 @@ top to bottom direction
 ' === CLIENTS ===
 rectangle "Clients" {
     [Developer\n(SDK)] as Dev
-    [End User\n(Player)] as User
+    [End User\n(Player + Wallet)] as User
 }
 
 ' === PLATFORM ===
@@ -22,13 +22,23 @@ rectangle "Platform Backend\n(Self-hostable)" as Platform {
     database "Cache" as Cache
 }
 
+' === SEAL ===
+rectangle "Seal\n(Decentralized Secrets)" as SealBox {
+    [Key Servers] as Seal
+    note bottom of Seal
+      - Access control
+      - Key derivation
+      - Client-side decrypt
+    end note
+}
+
 ' === BLOCKCHAIN ===
 rectangle "Sui Blockchain" as Sui {
     [Smart Contract] as Contract
     note bottom of Contract
       - Accounts & Balances
       - Video metadata
-      - Bandwidth tracking
+      - Whitelists
     end note
 }
 
@@ -37,7 +47,7 @@ rectangle "Walrus" as Walrus {
     [Decentralized\nStorage] as Storage
     note bottom of Storage
       - HLS segments
-      - Video blobs
+      - Encrypted blobs
     end note
 }
 
@@ -50,5 +60,8 @@ Cache --> Storage : read
 
 API --> Contract : state
 API --> Storage : write
+
+User --> Seal : decrypt key\n(private videos)
+Seal --> Contract : verify access
 
 @enduml

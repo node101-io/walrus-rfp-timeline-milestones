@@ -1,0 +1,71 @@
+@startuml 09-private-video-upload
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 9: Private Video Upload (Seal Encryption)
+
+actor "Developer" as Dev
+participant "Platform\nBackend" as Backend
+participant "Seal\nSDK" as SealSDK
+participant "Platform\nSmart Contract" as Contract
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+
+== Initiate Private Upload ==
+
+Dev -> Backend: POST /videos/upload\n{title, is_private: true, whitelist: [addr1, addr2]}
+Backend -> Backend: Generate random AES key\n(32 bytes)
+
+== Encrypt Video Segments ==
+
+Backend -> Backend: Transcode video to HLS
+
+loop For each HLS segment
+    Backend -> Backend: AES.encrypt(segment, aes_key)
+end
+
+Backend -> Backend: AES.encrypt(manifest, aes_key)
+
+== Store Encrypted Segments on Walrus ==
+
+loop For each encrypted segment
+    Backend -> Walrus: walrus store encrypted_segment
+    Walrus --> Backend: blob_id
+end
+
+== Encrypt AES Key with Seal ==
+
+Backend -> SealSDK: Seal.encrypt(\n  data: aes_key,\n  packageId: access_policy_pkg,\n  id: video_id,\n  threshold: 2\n)
+
+note right of SealSDK
+  Seal encrypts the 32-byte AES key
+  using Identity-Based Encryption.
+
+  The "id" ties this key to the
+  video's access policy on-chain.
+end note
+
+SealSDK --> Backend: encrypted_aes_key
+
+== Register on Sui ==
+
+Backend -> Contract: register_private_video(\n  video_id,\n  blob_ids[],\n  encrypted_aes_key,\n  whitelist[]\n)
+
+Contract -> Sui: Create Video object {\n  is_private: true,\n  encrypted_key: ...,\n  whitelist: [addr1, addr2]\n}
+
+Contract -> Sui: Create Whitelist object {\n  video_id,\n  allowed: [addr1, addr2]\n}
+
+Sui --> Contract: video_id
+Contract --> Backend: video_id
+
+Backend --> Dev: Upload complete\n{\n  video_id,\n  playback_url,\n  is_private: true,\n  whitelist: [addr1, addr2]\n}
+
+note right of Backend
+  For private videos:
+  - All segments are AES encrypted
+  - AES key is Seal encrypted
+  - Only whitelisted wallets can
+    get the decryption key
+end note
+
+@enduml

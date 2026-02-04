@@ -1,0 +1,95 @@
+@startuml 10-private-video-playback
+
+!theme plain
+skinparam backgroundColor #FEFEFE
+title Flow 10: Private Video Playback (Seal Decryption)
+
+actor "End User" as User
+participant "Video Player\n(Browser)" as Player
+participant "Seal SDK\n(Client)" as SealSDK
+participant "Seal\nKey Servers" as KeyServer
+participant "Platform\nBackend" as Backend
+database "Sui\nBlockchain" as Sui
+database "Walrus\nStorage" as Walrus
+
+== User Initiates Playback ==
+
+User -> Player: Click play on private video
+
+Player -> Backend: GET /v/{video_id}/info
+Backend -> Backend: Check: is_private = true
+Backend --> Player: {\n  is_private: true,\n  encrypted_key: "...",\n  package_id: "0x..."\n}
+
+== Wallet Authentication (One-time) ==
+
+Player -> Player: Detect: private video\nrequires wallet
+
+Player -> User: "Sign to access this video"\n(wallet popup)
+
+User -> Player: Signs message with wallet
+
+Player -> SealSDK: SessionKey.create(\n  address: user_wallet,\n  packageId: access_policy_pkg,\n  ttlMin: 10\n)
+
+SealSDK --> Player: session_key (valid 10 min)
+
+== Fetch Decryption Key from Seal ==
+
+Player -> SealSDK: client.decrypt(\n  data: encrypted_aes_key,\n  sessionKey: session_key,\n  txBytes: seal_approve_tx\n)
+
+SealSDK -> KeyServer: Request derived key\nfor identity [pkg][video_id]
+
+KeyServer -> Sui: Dry-run seal_approve(\n  id: video_id,\n  sender: user_wallet\n)
+
+Sui -> Sui: Check whitelist:\nIs user_wallet in\nvideo.whitelist?
+
+alt User NOT in whitelist
+    Sui --> KeyServer: ABORT: ENoAccess
+    KeyServer --> SealSDK: Access denied
+    SealSDK --> Player: Error: Not authorized
+    Player --> User: "You don't have\naccess to this video"
+else User IS in whitelist
+    Sui --> KeyServer: OK (no abort)
+    KeyServer -> KeyServer: Derive secret key\nfor identity
+    KeyServer --> SealSDK: derived_key
+end
+
+== Client-Side Decryption ==
+
+SealSDK -> SealSDK: Decrypt AES key locally\nusing derived_key
+
+SealSDK --> Player: aes_key (32 bytes)
+
+Player -> Player: Store aes_key in memory
+
+note right of Player
+  AES key is now in browser memory.
+  Backend NEVER sees this key.
+  All decryption happens client-side.
+end note
+
+== Stream & Decrypt Video ==
+
+Player -> Backend: GET /v/{video_id}/stream.m3u8
+Backend -> Walrus: Read encrypted manifest
+Walrus --> Backend: encrypted_manifest
+Backend --> Player: encrypted_manifest
+
+Player -> Player: AES.decrypt(manifest, aes_key)
+
+loop For each HLS segment
+    Player -> Backend: GET /v/{video_id}/seg_{n}.ts
+    Backend -> Walrus: Read encrypted segment
+    Walrus --> Backend: encrypted_segment
+    Backend --> Player: encrypted_segment
+
+    Player -> Player: AES.decrypt(segment, aes_key)
+    Player -> Player: Play decrypted segment
+end
+
+note right of Player
+  Each segment decryption is
+  instant (AES is fast).
+  No more Seal requests needed.
+end note
+
+@enduml

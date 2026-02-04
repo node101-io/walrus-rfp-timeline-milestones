@@ -1,79 +1,203 @@
-# Developer-first video infrastructure and tooling platform
+# Walrus Video Infrastructure Platform
 
-## Overview
+A developer-first video infrastructure built on Walrus and Sui, offering cloud-grade video hosting without centralized dependencies.
 
-This product proposes a developer-first video infrastructure and tooling platform, similar in spirit to Mux or Agora: for uploading, storing, publishing, and serving video content at scale. It is designed to give teams a reliable, modern alternative to traditional video backends, without requiring them to assemble or operate complex media pipelines themselves.
+## Problem
 
-The platform focuses on making video durable, efficient to deliver, and easy to integrate into applications. It supports large-file uploads, partial reads, and high-performance playback while preserving flexibility for a wide range of use cases such as creator platforms, education and training, media archives, internal tooling, and consumer or enterprise applications.
+Building video infrastructure is expensive and complex. Teams must integrate object storage, upload pipelines, CDN delivery, access control, and billing across multiple vendors. This creates lock-in, high costs, and operational burden.
 
-At its core, the product treats video not as a transient streaming artifact, but as a first-class data asset that can be stored once, reused across contexts, and served efficiently without sacrificing reliability or control.
+Existing solutions optimize for delivery, not ownership. Videos are tied to platforms with no guarantees around portability, integrity, or long-term availability.
 
-### Problems this could help address
+## Solution
 
-Building video infrastructure today is expensive and operationally heavy. Teams must combine object storage, upload pipelines, delivery infrastructure, access control, analytics, and billing, often across multiple vendors. This increases cost, complexity, and long-term lock-in, and makes it difficult to scale or evolve systems without significant rework.
+An open-source, **self-hostable** video backend that uses:
+- **Walrus** for decentralized blob storage
+- **Sui** for on-chain state (ownership, balances, metadata)
+- **Seal** for private video encryption and access control
+- **HLS streaming** for standard video playback
 
-Existing video platforms optimize primarily for delivery, not longevity or reuse. Videos are typically tied to a single application or hosting provider, with limited guarantees around integrity, provenance, or portability. This becomes a problem for use cases where content must remain accessible and trustworthy over long periods of time, across applications.
+Developers get a simple API to upload, manage, and serve videos. End users watch videos through standard players. Private videos are encrypted and only accessible to whitelisted wallets.
 
-Large video files further complicate matters. Uploads are fragile, retries are costly, and failures often require starting over. Serving video efficiently requires support for partial reads, seeking, and progressive playback, yet many systems rely on inefficient full-file transfers or opaque optimizations. These issues frequently surface as user-facing reliability or performance problems.
+## Why Self-Hostable Matters
 
-Finally, video content is difficult to reuse across products and workflows. Media is typically locked inside a single platform, making it hard to share, embed, license, or repurpose across applications. This limits experimentation, slows product iteration, and increases duplication of storage and infrastructure.
+This platform is **not a centralized service**. It's infrastructure that anyone can run.
 
-## Desirable Features
+| Concern | How We Address It |
+|---------|-------------------|
+| "What if you go down?" | Self-host your own instance |
+| "What if you censor content?" | Run your own backend, same protocol |
+| "Is this really decentralized?" | Storage (Walrus) and state (Sui) are decentralized. Backend is just an API layer anyone can deploy |
 
-### Video-native upload and storage
+The backend is a **convenience layer**, not a gatekeeper. All video data lives on Walrus. All ownership records live on Sui. The backend simply provides developer-friendly APIs and caching.
 
-The platform provides a robust ingestion pipeline designed specifically for large media files. Videos are uploaded in ordered chunks, enabling resumable and parallel uploads that are resilient to network failures. Each video is accompanied by explicit ordering and manifest metadata, allowing the system to reason clearly about structure, versions, and integrity.
+```
+┌─────────────────────────────────────────────────────────┐
+│  Your App                                               │
+├─────────────────────────────────────────────────────────┤
+│  Platform Backend (self-hostable, replaceable)         │
+├─────────────────────────────────────────────────────────┤
+│  Sui (ownership, state)  +  Walrus (video storage)     │
+│  ─────────────── decentralized layer ───────────────   │
+└─────────────────────────────────────────────────────────┘
+```
 
-On read, chunks are reassembled on demand using efficient byte-range access. This avoids unnecessary full-file downloads and enables fast seeks and partial playback without duplicating data.
+## Architecture Overview
 
-### High-performance delivery and streaming
+![High-Level Architecture](diagrams/08-component-overview.puml)
 
-The read path is optimized for real-world playback patterns. The system supports partial reads, byte-range requests, and seek-friendly access, making it suitable for video-on-demand, previews, and progressive playback. A scalable aggregation and caching layer sits in front of storage to ensure consistent performance under load, while remaining compatible with standard CDN and edge delivery patterns.
+### Key Components
 
-The result is predictable, efficient serving without requiring teams to build custom streaming infrastructure.
+| Component | Role |
+|-----------|------|
+| **Platform Backend** | API gateway, upload handling, playback serving, caching |
+| **Sui Smart Contract** | Developer accounts, balances, video metadata, whitelists |
+| **Walrus Storage** | HLS segments and manifests as deletable blobs |
+| **Seal Key Servers** | Access control verification, key derivation for private videos |
 
-### Developer-facing APIs and SDKs
+### Data Flow
 
-Developers interact with the platform through clean, well-documented APIs and SDKs. These expose common workflows such as uploading video, tracking processing status, fetching playback URLs, and managing metadata, without leaking storage or infrastructure complexity.
+1. **Developer** deposits SUI, gets bandwidth quota
+2. **Upload**: Video → Backend → Transcode to HLS → Store on Walrus → Register on Sui
+3. **Playback**: End user → Backend (cache) → Walrus → HLS stream
+4. **Renewal**: Scheduled job auto-extends blobs if balance sufficient
 
-The system clearly separates the control plane (uploads, metadata, policies) from the data plane (reads and delivery), making it easier to reason about behavior and scale independently. Events and webhooks can be used to integrate with application logic, monitoring, or downstream workflows.
+## Key Design Decisions
 
-### Access control and privacy
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Blob ownership | Developer's wallet | Simpler UX, end-users don't need wallets |
+| Blob type | Deletable + auto-renewal | Content removal possible, GDPR compliant |
+| Payment | SUI deposits only | Fully on-chain, no fiat complexity |
+| Playback | HLS streaming | Industry standard, works everywhere |
+| Bandwidth exceeded | Videos become unviewable | No credit risk, clear incentive to top up |
+| Deletion | Storage resource reusable + SUI rebate | Walrus reclaims storage, Sui refunds object fees |
+| Private videos | Seal + envelope encryption | True privacy, client-side decrypt, backend never sees content |
+| Access control | Wallet whitelist | Developer manages allowed addresses on-chain |
 
-The platform supports optional encryption and policy-based access control for teams that need private or restricted content. Videos can be marked as private or shared, with access enforced consistently at read time. This provides a foundation for gated content, internal video libraries, or controlled sharing, without imposing complexity on teams that only need public delivery.
 
-### Observability and usage insights
+## Sequence Diagrams
 
-Basic and advanced metrics are exposed to help teams understand how their video content is being used, including upload success rates, read volume, bandwidth consumption etc. These signals help developers debug issues, plan capacity, and reason about cost. The system is designed to evolve toward richer analytics and reporting as usage grows.
+Detailed flows are documented in PlantUML format:
 
-### How Walrus and broader Sui stack could be used
+| Flow | File | Description |
+|------|------|-------------|
+| Developer Onboarding | [01-developer-onboarding.puml](diagrams/01-developer-onboarding.puml) | Registration and SUI deposit |
+| Video Upload | [02-video-upload.puml](diagrams/02-video-upload.puml) | Chunked upload, HLS transcoding, Walrus storage |
+| Video Playback | [03-video-playback.puml](diagrams/03-video-playback.puml) | HLS streaming with caching |
+| Auto-Renewal | [04-auto-renewal.puml](diagrams/04-auto-renewal.puml) | Scheduled blob lifetime extension |
+| Video Deletion | [05-video-deletion.puml](diagrams/05-video-deletion.puml) | Content removal with storage reclaim |
+| Bandwidth Enforcement | [06-bandwidth-enforcement.puml](diagrams/06-bandwidth-enforcement.puml) | Quota checking and blocking |
+| Embed Player | [07-embed-player.puml](diagrams/07-embed-player.puml) | iframe and direct HLS embedding |
+| Component Overview | [08-component-overview.puml](diagrams/08-component-overview.puml) | High-level architecture |
+| Private Video Upload | [09-private-video-upload.puml](diagrams/09-private-video-upload.puml) | Seal encryption with envelope encryption |
+| Private Video Playback | [10-private-video-playback.puml](diagrams/10-private-video-playback.puml) | Client-side decryption with wallet auth |
 
-Walrus provides the underlying storage and data plane. Video chunks could be stored as blobs, while ordering, manifests, and metadata are managed through bucket-style abstractions. Efficient byte-range reads and a resilient aggregator plus caching layer enable high-performance streaming without duplicating data or relying on centralized storage.
+## Private Videos
 
-The broader stack provides the control plane and extensibility. Sui’s programmable logic could be used to manage access rules, integrate payments & subscriptions, and attach application specific behavior to video assets. Seal-based encryption and policy enforcement layers could enable private or restricted content.
+Private videos use **Seal** for decentralized access control with **envelope encryption** for efficiency.
 
-Together, these components could allow the platform to offer cloud-grade ergonomics with strong guarantees around durability, correctness, and long-term ownership, without forcing teams into an opaque infrastructure.
+### How It Works
 
-### Potential use cases
+```
+Upload:
+  1. Generate random AES key
+  2. Encrypt video segments with AES (fast)
+  3. Encrypt AES key with Seal (access-controlled)
+  4. Store encrypted segments on Walrus
+  5. Developer sets whitelist on Sui
 
-This platform could support a wide range of video-driven products and workflows, including:
+Playback:
+  1. User signs with wallet (one-time)
+  2. Seal verifies: is user in whitelist?
+  3. If yes → return derived key
+  4. Client decrypts AES key
+  5. Client decrypts video segments locally
+```
 
-- Creator and content platforms: Hosting and delivering user-generated or professional video content with reliable uploads, efficient playback, and long-term durability.
-- Education and training: Managing course videos, recorded lectures, and internal training content that must remain accessible and easy to update over time.
-- Media libraries and archives: Storing large video collections that need predictable access, integrity, and reuse across multiple applications or sites.
-- Internal product and ops tooling: Powering product demos, onboarding videos, incident recordings, or knowledge bases without relying on fragile ad-hoc storage.
-- Consumer and enterprise applications: Adding video features, such as playback, previews, or recordings, without building and operating a custom video backend.
+### Security Properties
 
-The common thread is simple: teams get a reliable, scalable video foundation without having to become video infrastructure experts themselves.
+| Property | How It's Achieved |
+|----------|-------------------|
+| **True privacy** | Only whitelisted wallets can decrypt |
+| **Backend never sees content** | Decryption is client-side |
+| **Decentralized access control** | Seal key servers verify on-chain whitelist |
+| **Efficient** | Seal encrypts only the key (32 bytes), AES handles video data |
+
+### User Experience
+
+- User needs a Sui wallet to watch private videos
+- Signs once per session (~10 minute validity)
+- After signing, playback is seamless (no more prompts)
+
+---
+
+## Pricing Model
+
+Developers pay in SUI. Costs map directly to underlying resources:
+
+| Resource | What Developer Pays |
+|----------|---------------------|
+| **Storage** | Blob size × epochs (passed through from Walrus) |
+| **Bandwidth** | Per GB served (from deposited balance) |
+| **Renewal** | Same as storage cost (auto-deducted if balance available) |
+
+When a video is deleted:
+- Walrus storage resource is **reclaimed** (reusable for new uploads)
+- Sui object storage fee is **refunded** as rebate
+
+## Scope
+
+### Core Features
+- Developer registration & SUI deposits
+- Video upload (original resolution)
+- HLS playback with caching
+- Bandwidth quota enforcement
+- Auto-renewal of blobs
+- Video deletion with storage reclaim
+- Basic embed player
+- Public and private videos
+- Private video encryption (Seal integration)
+- Wallet whitelist access control
+
+### Future Improvements
+- Multi-resolution transcoding (adaptive bitrate)
+- Token-gated access (NFT/token ownership)
+- Analytics dashboard
+- Webhook integrations
+- Custom player branding
 
 ## Deliverables
 
-- Competitive and architectural analysis of existing video infrastructure platforms (e.g. Mux, Agora)
-- Definition of supported video workflows (upload, read, playback, reuse, access control)
-- Technical architecture & design
-- Core smart contracts (Sui)
-- Walrus storage integration
-- Upload & read pipeline (chunking, resumable, partial reads)
-- Developer APIs / SDK
-- Reference implementation
-- Documentation & open-source repo
+- [ ] Competitive analysis of existing video platforms (Mux, Cloudflare Stream, etc.)
+- [ ] Technical architecture documentation
+- [ ] Sui smart contracts (Move) - accounts, videos, whitelists
+- [ ] Walrus storage integration
+- [ ] Seal integration for private videos
+- [ ] Upload & playback pipeline (public + private)
+- [ ] Developer SDK (TypeScript)
+- [ ] Reference implementation
+- [ ] Documentation & open-source repository
+
+## Why Walrus + Sui + Seal?
+
+| Traditional Video Hosting | This Platform |
+|---------------------------|---------------|
+| Vendor lock-in | Self-hostable, open protocol |
+| Opaque storage | Walrus: verifiable, decentralized |
+| Platform owns content | Developer wallet owns Sui objects |
+| Monthly bills, credit cards | SUI deposits, on-chain accounting |
+| Single point of failure | Walrus redundancy across storage nodes |
+| Centralized access control | Seal: decentralized, on-chain whitelists |
+| Server-side DRM | Client-side encryption, true privacy |
+
+- **Walrus** provides the **storage layer** with built-in redundancy and verifiability
+- **Sui** provides the **ownership layer** with programmable logic and on-chain state
+- **Seal** provides the **access control layer** with decentralized key management
+
+Together, they enable video infrastructure that's developer-friendly, genuinely decentralized, and privacy-preserving.
+
+---
+
+## Links
+
+- [Sequence Diagrams](diagrams/)
