@@ -124,45 +124,6 @@ Detailed flows documented below. Click to expand each diagram.
 ![Private Video Playback](diagrams/images/10-private-video-playback.png)
 </details>
 
-## Private Videos
-
-Private videos use **Seal** for decentralized access control with **envelope encryption** for efficiency.
-
-### How It Works
-
-```
-Upload:
-  1. Generate random AES key
-  2. Encrypt video segments with AES (fast)
-  3. Encrypt AES key with Seal (access-controlled)
-  4. Store encrypted segments on Walrus
-  5. Developer sets whitelist on Sui
-
-Playback:
-  1. User signs with wallet (one-time)
-  2. Seal verifies: is user in whitelist?
-  3. If yes → return derived key
-  4. Client decrypts AES key
-  5. Client decrypts video segments locally
-```
-
-### Security Properties
-
-| Property | How It's Achieved |
-|----------|-------------------|
-| **True privacy** | Only whitelisted wallets can decrypt |
-| **Backend never sees content** | Decryption is client-side |
-| **Decentralized access control** | Seal key servers verify on-chain whitelist |
-| **Efficient** | Seal encrypts only the key (32 bytes), AES handles video data |
-
-### User Experience
-
-- User needs a Sui wallet to watch private videos
-- Signs once per session (~10 minute validity)
-- After signing, playback is seamless (no more prompts)
-
----
-
 ## Pricing Model
 
 Developers pay in SUI. Costs map directly to underlying resources:
