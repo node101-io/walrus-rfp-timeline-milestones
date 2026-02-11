@@ -53,18 +53,3 @@
 **Deliverables:** TypeScript SDK (npm-publishable) wrapping all API endpoints. Reference app demoing public + private video flows. Full documentation (API ref, self-hosting guide, contract deployment). Open-source repository.
 
 **Success:** SDK enables any platform operation in <20 lines of code. A new developer can clone the repo and self-host their own instance following the guide.
-
----
-
-## Budget Summary
-
-| Milestone | Weeks | Budget |
-|---|---|---|
-| 1. Research & Analysis | 1-2 | $4,500 |
-| 2. Architecture & Contracts | 3-4 | $3,750 |
-| 3. Walrus & Upload Pipeline | 5-6 | $3,750 |
-| 4. Playback & Caching | 7 | $2,125 |
-| 5. Lifecycle Management | 8 | $2,125 |
-| 6. Seal & Private Videos | 9-10 | $4,250 |
-| 7. SDK, Docs & Release | 11-12 | $4,750 |
-| **Total** | **12 weeks** | **$25,250** |
