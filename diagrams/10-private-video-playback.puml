@@ -5,12 +5,18 @@ skinparam backgroundColor #FEFEFE
 title Flow 10: Private Video Playback (Seal Decryption)
 
 actor "End User" as User
-participant "Video Player\n(Browser)" as Player
+participant "Hosted Player Page\n(Browser)" as Player
 participant "Seal SDK\n(Client)" as SealSDK
 participant "Seal\nKey Servers" as KeyServer
 participant "Platform\nBackend" as Backend
 database "Sui\nBlockchain" as Sui
 database "Walrus\nStorage" as Walrus
+
+note over Player
+  Private video playback requires the hosted player page (/watch/{video_id}).
+  Segments are AES-encrypted — a raw .m3u8 URL will not work in a generic player.
+  Decryption happens inside a custom hls.js loader before bytes reach the <video> element.
+end note
 
 == User Initiates Playback ==
 
@@ -53,43 +59,47 @@ else User IS in whitelist
     KeyServer --> SealSDK: derived_key
 end
 
-== Client-Side Decryption ==
+== Client-Side Key Decryption ==
 
 SealSDK -> SealSDK: Decrypt AES key locally\nusing derived_key
 
 SealSDK --> Player: aes_key (32 bytes)
 
-Player -> Player: Store aes_key in memory
+Player -> Player: Store aes_key in memory\nInitialize custom hls.js loader\nwith aes_key
 
 note right of Player
   AES key is now in browser memory.
   Backend NEVER sees this key.
-  All decryption happens client-side.
+  The custom hls.js loader will use it
+  to decrypt every manifest and segment
+  response before passing bytes to the
+  <video> element. No manual decryption
+  step is needed during playback.
 end note
 
 == Stream & Decrypt Video ==
 
-Player -> Backend: GET /v/{video_id}/stream.m3u8
+Player -> Backend: GET /v/{video_id}/stream.m3u8\n(via custom hls.js loader)
 Backend -> Walrus: Read encrypted manifest
 Walrus --> Backend: encrypted_manifest
 Backend --> Player: encrypted_manifest
 
-Player -> Player: AES.decrypt(manifest, aes_key)
+Player -> Player: custom loader:\nAES.decrypt(manifest, aes_key)\nPass decrypted manifest to hls.js
 
 loop For each HLS segment
-    Player -> Backend: GET /v/{video_id}/seg_{n}.ts
+    Player -> Backend: GET /v/{video_id}/seg_{n}.ts\n(via custom hls.js loader)
     Backend -> Walrus: Read encrypted segment
     Walrus --> Backend: encrypted_segment
     Backend --> Player: encrypted_segment
 
-    Player -> Player: AES.decrypt(segment, aes_key)
-    Player -> Player: Play decrypted segment
+    Player -> Player: custom loader:\nAES.decrypt(segment, aes_key)\nFeed decrypted bytes to MSE\nPlay segment
 end
 
 note right of Player
   Each segment decryption is
   instant (AES is fast).
-  No more Seal requests needed.
+  No more Seal requests needed
+  for the duration of the session.
 end note
 
 @enduml

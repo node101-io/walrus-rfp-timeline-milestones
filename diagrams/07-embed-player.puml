@@ -9,7 +9,14 @@ participant "Third-party\nWebsite" as Website
 participant "Platform\nBackend" as Backend
 participant "Platform\nPlayer" as Player
 
-== iframe Embed ==
+note over Website, Player
+  PUBLIC videos: both iframe embed and direct HLS URL work with any standard player.
+  PRIVATE videos: only the hosted player page (/watch/{video_id}) is supported.
+  A raw .m3u8 URL for a private video will not play in a generic player because
+  segments are AES-encrypted and require the custom hls.js loader to decrypt.
+end note
+
+== iframe Embed (Public Videos) ==
 
 Visitor -> Website: Visit page with embedded video
 
@@ -33,10 +40,11 @@ else Video unavailable
     Website --> Visitor: Error displayed
 end
 
-== Direct HLS URL (Alternative) ==
+== Direct HLS URL (Public Videos Only) ==
 
 note over Website
   Alternative: Direct <video> tag
+  Only works for public videos.
 
   <video controls>
     <source src="https://api.platform.com
@@ -44,7 +52,23 @@ note over Website
       type="application/x-mpegURL">
   </video>
 
-  Requires HLS.js for non-Safari browsers
+  Requires HLS.js for non-Safari browsers.
+  NOT compatible with private videos.
+end note
+
+== Private Video Embed ==
+
+note over Website, Player
+  Private videos must be embedded via the hosted player page:
+
+  <iframe src="https://api.platform.com/watch/{video_id}"></iframe>
+
+  The hosted player page handles:
+  - Wallet authentication prompt
+  - Seal key unlock
+  - Custom hls.js loader with AES decryption
+  Direct HLS URLs and generic <video> tags
+  will not work for private videos.
 end note
 
 @enduml
