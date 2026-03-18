@@ -64,10 +64,14 @@ Version 1 focuses on the complete public-video lifecycle and the first hosted ex
 
 ## **Future Versions: Long-Term Vision**
 
+The items below are not part of the current grant-funded scope and are included to show the longer-term product direction.
+
 * Developer shall be able to upload a video and have it automatically transcoded into multiple quality renditions, with the player switching bitrate based on the viewer's connection speed.
   * Testing plan: Cross-device playback tests, bitrate switching validation under simulated network conditions, segment continuity checks.
 * Developer shall be able to gate a video behind NFT ownership or token balance instead of a manual wallet whitelist, using the existing Seal and wallet integration.
   * Testing plan: Contract and API integration tests for token-gated access policies, positive and negative access tests with qualifying and non-qualifying wallets.
+* Developer shall be able to onboard end users with zkLogin-backed wallet access, allowing OAuth-based sign-in for private and wallet-gated video flows without requiring traditional seed phrase management.
+  * Testing plan: End-to-end tests with supported OAuth providers, repeat-login and address continuity checks, and access-control tests for zkLogin-backed users across private and wallet-gated video flows.
 * Developer shall be able to view per-video analytics including view counts, bandwidth consumed, and playback activity to understand usage and SUI spend.
   * Testing plan: Analytics data accuracy tests, aggregation validation, API integration tests.
 * Developer shall be able to receive webhook notifications for platform events such as upload completion, blob renewal, and bandwidth threshold alerts.
@@ -161,13 +165,14 @@ Version 1 focuses on the complete public-video lifecycle and the first hosted ex
   * At least 5 videos uploaded across public and private flows
   * At least 100 successful playback sessions across pilot environments
 
-**Phase 4: Future Iterations \- {Budget}**
+**Phase 4: Future Iterations (Not Included in Current Budget Request)**
 
 * Duration: Ongoing
 * Team: To be finalized
 * Focus Areas:
   * Adaptive bitrate and delivery-quality improvements
   * Token-gated access policies and richer on-chain permission models
+  * zkLogin-based onboarding and lower-friction wallet access
   * Analytics, webhooks, and operational tooling
   * Hosted product refinement, support workflows, and packaging based on pilot demand
 
@@ -184,7 +189,7 @@ Version 1 focuses on the complete public-video lifecycle and the first hosted ex
 **$\[Insert Total Amount\]**
 
 *Briefly describe the budget intent:*
-“This budget covers core team development time, design resources, infrastructure costs (e.g., hosting, storage, APIs), and any tools or licenses needed for the proposed timeline.”
+“The current budget request is intended to cover Phases 1 through 3 only, including core team development time, design resources, infrastructure costs (e.g., hosting, storage, APIs), and any tools or licenses needed for that scope. Phase 4 and the Future Versions roadmap are not part of the current funding request and are included only to show longer-term direction.”
 
 # 8\. Past Demonstration of Technical Expertise
 
